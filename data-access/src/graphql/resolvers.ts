@@ -50,10 +50,36 @@ function organizationCollections(db: Db) {
   return [db.collection('organizations'), db.collection('greenlight-orgs'), db.collection('orgs')];
 }
 
+function userCollections(db: Db) {
+  return [db.collection('users'), db.collection('greenlight-users')];
+}
+
+function eventCollections(db: Db) {
+  return [db.collection('events'), db.collection('greenlight-events')];
+}
+
+function locationCollections(db: Db) {
+  return [db.collection('locations'), db.collection('greenlight-locations')];
+}
+
+function purchaseCollections(db: Db) {
+  return [db.collection('purchases'), db.collection('greenlight-purchases')];
+}
+
 async function findMongoOrganizations(db: Db, query: Record<string, any>) {
   const docs = await Promise.all(
     organizationCollections(db).map(async (collection) => collection.find(query).sort({ id: 1 }).toArray())
   );
+  return docs.flat();
+}
+
+async function findMongoDocuments(db: Db, collections: ReturnType<typeof organizationCollections>, query: Record<string, any>) {
+  const docs = await Promise.all(collections.map(async (collection) => collection.find(query).sort({ id: 1 }).toArray()));
+  return docs.flat();
+}
+
+async function findMongoEvents(db: Db, query: Record<string, any>) {
+  const docs = await Promise.all(eventCollections(db).map(async (collection) => collection.find(query).sort({ id: 1 }).toArray()));
   return docs.flat();
 }
 
@@ -83,6 +109,73 @@ async function findMongoOrganizationById(db: Db, id: string) {
   }
 
   return null;
+}
+
+async function findMongoEventById(db: Db, id: string) {
+  const numericId = Number(id);
+  const objectIdMatch = /^[a-fA-F0-9]{24}$/.test(id) ? new ObjectId(id) : null;
+
+  for (const collection of eventCollections(db)) {
+    if (objectIdMatch) {
+      const byObjectId = await collection.findOne({ _id: objectIdMatch });
+      if (byObjectId) return byObjectId;
+    }
+    if (Number.isFinite(numericId)) {
+      const byNumericId = await collection.findOne({ id: numericId });
+      if (byNumericId) return byNumericId;
+    }
+    const byStringId = await collection.findOne({ id });
+    if (byStringId) return byStringId;
+  }
+
+  return null;
+}
+
+function mapMongoEvent(doc: any) {
+  if (!doc) return null;
+  return {
+    id: String(doc.id ?? doc._id),
+    organizationUsername: doc.organizationUsername ?? doc.organization_username ?? doc.organization ?? null,
+    organization: doc.organizationId ?? doc.organization_id ?? doc.organization ?? null,
+    createdBy: doc.created_by ?? doc.createdBy ?? null,
+    title: doc.title ?? null,
+    description: doc.description ?? null,
+    eventDate: doc.event_date ?? doc.eventDate ?? null,
+    setupTime: doc.setup_time ?? doc.setupTime ?? null,
+    startTime: doc.start_time ?? doc.startTime ?? null,
+    endTime: doc.end_time ?? doc.endTime ?? null,
+    location: doc.location ?? null,
+    locationId: doc.locationId ?? doc.location_id ?? null,
+    locationType: doc.locationType ?? doc.location_type ?? null,
+    eventLevel: doc.eventLevel ?? doc.event_level ?? null,
+    eventImg: doc.eventImg ?? doc.event_img ?? null,
+    eventStatus: doc.eventStatus ?? doc.event_status ?? null,
+    formData: doc.formData ?? doc.form_data ?? null,
+    submittedAt: doc.submitted_at ?? doc.submittedAt ?? null,
+    createdAt: doc.created_at ?? doc.createdAt ?? null,
+    updatedAt: doc.updated_at ?? doc.updatedAt ?? null
+  };
+}
+
+function asObjectId(value: any) {
+  if (value instanceof ObjectId) return value;
+  if (typeof value === 'string' && /^[a-fA-F0-9]{24}$/.test(value)) {
+    return new ObjectId(value);
+  }
+  return null;
+}
+
+function relationQueryFromParent(parent: any, fieldNames: string[]) {
+  for (const fieldName of fieldNames) {
+    const value = parent?.[fieldName];
+    if (value === null || value === undefined) continue;
+    const objectId = asObjectId(value);
+    if (objectId) {
+      return { $or: [{ [fieldName]: objectId }, { [fieldName]: String(value) }] };
+    }
+    return { $or: [{ [fieldName]: value }, { [fieldName]: String(value) }] };
+  }
+  return {};
 }
 
 export const resolvers = {
@@ -124,6 +217,17 @@ export const resolvers = {
       return fetchOrganizationById(ctx.pool, args.id);
     },
     getEvents: async (_: unknown, args: any, ctx: Context) => {
+      if (ctx.mongoDb) {
+        const query: Record<string, any> = {};
+        if (args.status) query.event_status = args.status;
+        if (args.fromDate || args.toDate) {
+          query.event_date = {};
+          if (args.fromDate) query.event_date.$gte = args.fromDate;
+          if (args.toDate) query.event_date.$lte = args.toDate;
+        }
+        const docs = await findMongoEvents(ctx.mongoDb, query);
+        return docs.map(mapMongoEvent).filter(Boolean);
+      }
       const limit = Number(args.limit ?? 25);
       const offset = Number(args.offset ?? 0);
       const params: any[] = [];
@@ -143,19 +247,40 @@ export const resolvers = {
       const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
       params.push(limit, offset);
       const [rows] = await ctx.pool.query<RowDataPacket[]>(
-        `SELECT * FROM \`greenlight-events\` ${whereSql} ORDER BY id ASC LIMIT ? OFFSET ?`,
+        `SELECT * FROM \`events\` ${whereSql} ORDER BY id ASC LIMIT ? OFFSET ?`,
         params
       );
       return rows.map(mapEventRow);
     },
     getEvent: async (_: unknown, args: any, ctx: Context) => {
+      if (ctx.mongoDb) {
+        const doc = await findMongoEventById(ctx.mongoDb, args.id);
+        return mapMongoEvent(doc);
+      }
       const [rows] = await ctx.pool.query<RowDataPacket[]>(
-        'SELECT * FROM `greenlight-events` WHERE id = ? LIMIT 1',
+        'SELECT * FROM `events` WHERE id = ? LIMIT 1',
         [args.id]
       );
       return rows[0] ? mapEventRow(rows[0]) : null;
     },
     getEventsByOrganization: async (_: unknown, args: any, ctx: Context) => {
+      if (ctx.mongoDb) {
+        const query: Record<string, any> = {
+          $or: [
+            { organizationUsername: args.orgUsername },
+            { organization_username: args.orgUsername },
+            { organization: args.orgUsername }
+          ]
+        };
+        if (args.status) query.event_status = args.status;
+        if (args.fromDate || args.toDate) {
+          query.event_date = {};
+          if (args.fromDate) query.event_date.$gte = args.fromDate;
+          if (args.toDate) query.event_date.$lte = args.toDate;
+        }
+        const docs = await findMongoEvents(ctx.mongoDb, query);
+        return docs.map(mapMongoEvent).filter(Boolean);
+      }
       const limit = Number(args.limit ?? 25);
       const offset = Number(args.offset ?? 0);
       const params: any[] = [args.orgUsername];
@@ -175,12 +300,30 @@ export const resolvers = {
       params.push(limit, offset);
       const whereSql = `WHERE ${where.join(' AND ')}`;
       const [rows] = await ctx.pool.query<RowDataPacket[]>(
-        `SELECT * FROM \`greenlight-events\` ${whereSql} ORDER BY id ASC LIMIT ? OFFSET ?`,
+        `SELECT * FROM \`events\` ${whereSql} ORDER BY id ASC LIMIT ? OFFSET ?`,
         params
       );
       return rows.map(mapEventRow);
     },
     getUsers: async (_: unknown, args: any, ctx: Context) => {
+      if (ctx.mongoDb) {
+        const query: Record<string, any> = {};
+        if (args.username) query.username = args.username;
+        const docs = await findMongoDocuments(ctx.mongoDb, userCollections(ctx.mongoDb), query);
+        return docs.map((doc: any) => ({
+          id: String(doc.id ?? doc._id),
+          firstName: doc.first_name ?? doc.firstName ?? null,
+          lastName: doc.last_name ?? doc.lastName ?? null,
+          username: doc.username ?? null,
+          password: doc.password ?? null,
+          profileImg: doc.profile_img ?? doc.profileImg ?? null,
+          role: doc.role ?? null,
+          organization: doc.organizationId ?? doc.organization_id ?? doc.organization ?? null,
+          organizationUsername: doc.organizationUsername ?? doc.organization_username ?? doc.organization ?? null,
+          createdAt: doc.created_at ?? doc.createdAt ?? null,
+          updatedAt: doc.updated_at ?? doc.updatedAt ?? null
+        }));
+      }
       const limit = Number(args.limit ?? 25);
       const offset = Number(args.offset ?? 0);
       const params: any[] = [];
@@ -192,19 +335,47 @@ export const resolvers = {
       const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
       params.push(limit, offset);
       const [rows] = await ctx.pool.query<RowDataPacket[]>(
-        `SELECT * FROM \`greenlight-users\` ${whereSql} ORDER BY id ASC LIMIT ? OFFSET ?`,
+        `SELECT * FROM \`users\` ${whereSql} ORDER BY id ASC LIMIT ? OFFSET ?`,
         params
       );
       return rows.map(mapUserRow);
     },
     getUser: async (_: unknown, args: any, ctx: Context) => {
+      if (ctx.mongoDb) {
+        const docs = await findMongoDocuments(ctx.mongoDb, userCollections(ctx.mongoDb), relationQueryFromParent({ id: args.id }, ['id', '_id', 'username']));
+        const doc = docs[0];
+        return doc ? {
+          id: String(doc.id ?? doc._id),
+          firstName: doc.first_name ?? doc.firstName ?? null,
+          lastName: doc.last_name ?? doc.lastName ?? null,
+          username: doc.username ?? null,
+          password: doc.password ?? null,
+          profileImg: doc.profile_img ?? doc.profileImg ?? null,
+          role: doc.role ?? null,
+          organization: doc.organizationId ?? doc.organization_id ?? doc.organization ?? null,
+          organizationUsername: doc.organizationUsername ?? doc.organization_username ?? doc.organization ?? null,
+          createdAt: doc.created_at ?? doc.createdAt ?? null,
+          updatedAt: doc.updated_at ?? doc.updatedAt ?? null
+        } : null;
+      }
       const [rows] = await ctx.pool.query<RowDataPacket[]>(
-        'SELECT * FROM `greenlight-users` WHERE id = ? LIMIT 1',
+        'SELECT * FROM `users` WHERE id = ? LIMIT 1',
         [args.id]
       );
       return rows[0] ? mapUserRow(rows[0]) : null;
     },
     getLocations: async (_: unknown, args: any, ctx: Context) => {
+      if (ctx.mongoDb) {
+        const docs = await findMongoDocuments(ctx.mongoDb, locationCollections(ctx.mongoDb), {});
+        return docs.map((doc: any) => ({
+          id: String(doc.id ?? doc._id),
+          buildingCode: doc.building_code ?? doc.buildingCode ?? null,
+          buildingDisplayName: doc.building_display_name ?? doc.buildingDisplayName ?? null,
+          roomTitle: doc.room_title ?? doc.roomTitle ?? null,
+          roomType: doc.room_type ?? doc.roomType ?? null,
+          maxCapacity: doc.max_capacity ?? doc.maxCapacity ?? null
+        }));
+      }
       const limit = Number(args.limit ?? 25);
       const offset = Number(args.offset ?? 0);
       const [rows] = await ctx.pool.query<RowDataPacket[]>(
@@ -214,9 +385,35 @@ export const resolvers = {
       return rows.map(mapLocationRow);
     },
     getLocation: async (_: unknown, args: any, ctx: Context) => {
+      if (ctx.mongoDb) {
+        const docs = await findMongoDocuments(ctx.mongoDb, locationCollections(ctx.mongoDb), relationQueryFromParent({ id: args.id }, ['id', '_id']));
+        const doc = docs[0];
+        return doc ? {
+          id: String(doc.id ?? doc._id),
+          buildingCode: doc.building_code ?? doc.buildingCode ?? null,
+          buildingDisplayName: doc.building_display_name ?? doc.buildingDisplayName ?? null,
+          roomTitle: doc.room_title ?? doc.roomTitle ?? null,
+          roomType: doc.room_type ?? doc.roomType ?? null,
+          maxCapacity: doc.max_capacity ?? doc.maxCapacity ?? null
+        } : null;
+      }
       return fetchLocationById(ctx.pool, args.id);
     },
     getPurchases: async (_: unknown, args: any, ctx: Context) => {
+      if (ctx.mongoDb) {
+        const docs = await findMongoDocuments(ctx.mongoDb, purchaseCollections(ctx.mongoDb), {});
+        return docs.map((doc: any) => ({
+          id: String(doc.id ?? doc._id),
+          organizationUsername: doc.organizationUsername ?? doc.organization_username ?? doc.organization ?? null,
+          organization: doc.organizationId ?? doc.organization_id ?? doc.organization ?? null,
+          dateSubmitted: doc.date_submitted ?? doc.dateSubmitted ?? null,
+          itemTitle: doc.item_title ?? doc.itemTitle ?? null,
+          itemCategory: doc.item_category ?? doc.itemCategory ?? null,
+          eventId: doc.eventId ?? doc.event_id ?? null,
+          orderStatus: doc.order_status ?? doc.orderStatus ?? null,
+          itemCost: doc.item_cost ?? doc.itemCost ?? null
+        }));
+      }
       const limit = Number(args.limit ?? 25);
       const offset = Number(args.offset ?? 0);
       const [rows] = await ctx.pool.query<RowDataPacket[]>(
@@ -226,6 +423,21 @@ export const resolvers = {
       return rows.map(mapPurchaseRow);
     },
     getPurchase: async (_: unknown, args: any, ctx: Context) => {
+      if (ctx.mongoDb) {
+        const docs = await findMongoDocuments(ctx.mongoDb, purchaseCollections(ctx.mongoDb), relationQueryFromParent({ id: args.id }, ['id', '_id']));
+        const doc = docs[0];
+        return doc ? {
+          id: String(doc.id ?? doc._id),
+          organizationUsername: doc.organizationUsername ?? doc.organization_username ?? doc.organization ?? null,
+          organization: doc.organizationId ?? doc.organization_id ?? doc.organization ?? null,
+          dateSubmitted: doc.date_submitted ?? doc.dateSubmitted ?? null,
+          itemTitle: doc.item_title ?? doc.itemTitle ?? null,
+          itemCategory: doc.item_category ?? doc.itemCategory ?? null,
+          eventId: doc.eventId ?? doc.event_id ?? null,
+          orderStatus: doc.order_status ?? doc.orderStatus ?? null,
+          itemCost: doc.item_cost ?? doc.itemCost ?? null
+        } : null;
+      }
       const [rows] = await ctx.pool.query<RowDataPacket[]>(
         'SELECT * FROM `greenlight-purchases` WHERE id = ? LIMIT 1',
         [args.id]
@@ -233,6 +445,21 @@ export const resolvers = {
       return rows[0] ? mapPurchaseRow(rows[0]) : null;
     },
     getPurchasesByOrganization: async (_: unknown, args: any, ctx: Context) => {
+      if (ctx.mongoDb) {
+        const query = { organizationUsername: args.orgUsername };
+        const docs = await findMongoDocuments(ctx.mongoDb, purchaseCollections(ctx.mongoDb), query);
+        return docs.map((doc: any) => ({
+          id: String(doc.id ?? doc._id),
+          organizationUsername: doc.organizationUsername ?? doc.organization_username ?? doc.organization ?? null,
+          organization: doc.organizationId ?? doc.organization_id ?? doc.organization ?? null,
+          dateSubmitted: doc.date_submitted ?? doc.dateSubmitted ?? null,
+          itemTitle: doc.item_title ?? doc.itemTitle ?? null,
+          itemCategory: doc.item_category ?? doc.itemCategory ?? null,
+          eventId: doc.eventId ?? doc.event_id ?? null,
+          orderStatus: doc.order_status ?? doc.orderStatus ?? null,
+          itemCost: doc.item_cost ?? doc.itemCost ?? null
+        }));
+      }
       const limit = Number(args.limit ?? 25);
       const offset = Number(args.offset ?? 0);
       const [rows] = await ctx.pool.query<RowDataPacket[]>(
@@ -274,10 +501,10 @@ export const resolvers = {
       if (columns.length === 0) throw new Error('No input provided');
       const values = columns.map((col) => dbInput[col]);
       const placeholders = columns.map(() => '?').join(',');
-      const sql = `INSERT INTO \`greenlight-events\` (${columns.map((c) => `\`${c}\``).join(',')}) VALUES (${placeholders})`;
+      const sql = `INSERT INTO \`events\` (${columns.map((c) => `\`${c}\``).join(',')}) VALUES (${placeholders})`;
       const [result]: any = await ctx.pool.query(sql, values);
       const [rows] = await ctx.pool.query<RowDataPacket[]>(
-        'SELECT * FROM `greenlight-events` WHERE id = ? LIMIT 1',
+        'SELECT * FROM `events` WHERE id = ? LIMIT 1',
         [result.insertId]
       );
       return rows[0] ? mapEventRow(rows[0]) : null;
@@ -289,23 +516,23 @@ export const resolvers = {
       const sets = columns.map((col) => `\`${col}\` = ?`).join(',');
       const values = columns.map((col) => dbInput[col]);
       values.push(args.id);
-      const sql = `UPDATE \`greenlight-events\` SET ${sets} WHERE id = ?`;
+      const sql = `UPDATE \`events\` SET ${sets} WHERE id = ?`;
       await ctx.pool.query(sql, values);
       const [rows] = await ctx.pool.query<RowDataPacket[]>(
-        'SELECT * FROM `greenlight-events` WHERE id = ? LIMIT 1',
+        'SELECT * FROM `events` WHERE id = ? LIMIT 1',
         [args.id]
       );
       return rows[0] ? mapEventRow(rows[0]) : null;
     },
     deleteEvent: async (_: unknown, args: any, ctx: Context) => {
-      const [result]: any = await ctx.pool.query('DELETE FROM `greenlight-events` WHERE id = ?', [args.id]);
+      const [result]: any = await ctx.pool.query('DELETE FROM `events` WHERE id = ?', [args.id]);
       return result.affectedRows > 0;
     },
     changeEventStatus: async (_: unknown, args: any, ctx: Context) => {
       const status = normalizeEventStatus(args.status);
-      await ctx.pool.query('UPDATE `greenlight-events` SET `event_status` = ? WHERE id = ?', [status, args.id]);
+      await ctx.pool.query('UPDATE `events` SET `event_status` = ? WHERE id = ?', [status, args.id]);
       const [rows] = await ctx.pool.query<RowDataPacket[]>(
-        'SELECT * FROM `greenlight-events` WHERE id = ? LIMIT 1',
+        'SELECT * FROM `events` WHERE id = ? LIMIT 1',
         [args.id]
       );
       return rows[0] ? mapEventRow(rows[0]) : null;
@@ -319,7 +546,7 @@ export const resolvers = {
       const sql = `INSERT INTO \`greenlight-users\` (${columns.map((c) => `\`${c}\``).join(',')}) VALUES (${placeholders})`;
       const [result]: any = await ctx.pool.query(sql, values);
       const [rows] = await ctx.pool.query<RowDataPacket[]>(
-        'SELECT * FROM `greenlight-users` WHERE id = ? LIMIT 1',
+        'SELECT * FROM `users` WHERE id = ? LIMIT 1',
         [result.insertId]
       );
       return rows[0] ? mapUserRow(rows[0]) : null;
@@ -331,10 +558,10 @@ export const resolvers = {
       const sets = columns.map((col) => `\`${col}\` = ?`).join(',');
       const values = columns.map((col) => dbInput[col]);
       values.push(args.id);
-      const sql = `UPDATE \`greenlight-users\` SET ${sets} WHERE id = ?`;
+      const sql = `UPDATE \`users\` SET ${sets} WHERE id = ?`;
       await ctx.pool.query(sql, values);
       const [rows] = await ctx.pool.query<RowDataPacket[]>(
-        'SELECT * FROM `greenlight-users` WHERE id = ? LIMIT 1',
+        'SELECT * FROM `users` WHERE id = ? LIMIT 1',
         [args.id]
       );
       return rows[0] ? mapUserRow(rows[0]) : null;
@@ -379,6 +606,41 @@ export const resolvers = {
   },
   Organization: {
     events: async (parent: any, args: any, ctx: Context) => {
+      const organizationRef = parent.id || parent._id || parent.username || parent.organizationUsername;
+      if (ctx.mongoDb) {
+        const query: Record<string, any> = { $or: [] };
+        const orgObjectId = asObjectId(organizationRef);
+        if (orgObjectId) {
+          query.$or.push({ organizationId: orgObjectId }, { organization_id: orgObjectId }, { organization: orgObjectId });
+        }
+        query.$or.push({ organizationUsername: parent.username }, { organization_username: parent.username }, { organization: parent.username });
+        if (args.status) query.eventStatus = args.status;
+        if (args.fromDate) query.eventDate = { $gte: args.fromDate };
+        if (args.toDate) query.eventDate = { ...(query.eventDate || {}), $lte: args.toDate };
+        const docs = await findMongoDocuments(ctx.mongoDb, eventCollections(ctx.mongoDb), query);
+        return docs.map((doc: any) => ({
+          id: String(doc.id ?? doc._id),
+          organizationUsername: doc.organizationUsername ?? doc.organization_username ?? doc.organization ?? null,
+          organization: doc.organizationId ?? doc.organization_id ?? doc.organization ?? null,
+          createdBy: doc.created_by ?? doc.createdBy ?? null,
+          title: doc.title ?? null,
+          description: doc.description ?? null,
+          eventDate: doc.event_date ?? doc.eventDate ?? null,
+          setupTime: doc.setup_time ?? doc.setupTime ?? null,
+          startTime: doc.start_time ?? doc.startTime ?? null,
+          endTime: doc.end_time ?? doc.endTime ?? null,
+          location: doc.location ?? null,
+          locationId: doc.locationId ?? doc.location_id ?? null,
+          locationType: doc.locationType ?? doc.location_type ?? null,
+          eventLevel: doc.eventLevel ?? doc.event_level ?? null,
+          eventImg: doc.eventImg ?? doc.event_img ?? null,
+          eventStatus: doc.eventStatus ?? doc.event_status ?? null,
+          formData: doc.formData ?? doc.form_data ?? null,
+          submittedAt: doc.submitted_at ?? doc.submittedAt ?? null,
+          createdAt: doc.created_at ?? doc.createdAt ?? null,
+          updatedAt: doc.updated_at ?? doc.updatedAt ?? null
+        }));
+      }
       const username = parent.username || parent.organizationUsername;
       const limit = Number(args.limit ?? 25);
       const offset = Number(args.offset ?? 0);
@@ -398,7 +660,7 @@ export const resolvers = {
       }
       params.push(limit, offset);
       const [rows] = await ctx.pool.query<DbRow[]>(
-        `SELECT * FROM \`greenlight-events\` WHERE ${where.join(' AND ')} ORDER BY id ASC LIMIT ? OFFSET ?`,
+        `SELECT * FROM \`events\` WHERE ${where.join(' AND ')} ORDER BY id ASC LIMIT ? OFFSET ?`,
         params
       );
       return rows.map(mapEventRow);
@@ -406,16 +668,34 @@ export const resolvers = {
   },
   Event: {
     organization: async (parent: any, _args: any, ctx: Context) => {
+      if (ctx.mongoDb) {
+        const orgRef = parent.organizationId || parent.organization_id || parent.organization;
+        const usernameRef = parent.organizationUsername || parent.organization_username;
+        const doc = orgRef ? await findMongoOrganizationById(ctx.mongoDb, String(orgRef)) : usernameRef ? await findMongoOrganizationByUsername(ctx.mongoDb, usernameRef) : null;
+        return mapMongoOrganization(doc);
+      }
       return fetchOrganizationByUsername(ctx.pool, parent.organizationUsername || parent.organization);
     }
   },
   User: {
     organization: async (parent: any, _args: any, ctx: Context) => {
+      if (ctx.mongoDb) {
+        const orgRef = parent.organizationId || parent.organization_id || parent.organization;
+        const usernameRef = parent.organizationUsername || parent.organization_username;
+        const doc = orgRef ? await findMongoOrganizationById(ctx.mongoDb, String(orgRef)) : usernameRef ? await findMongoOrganizationByUsername(ctx.mongoDb, usernameRef) : null;
+        return mapMongoOrganization(doc);
+      }
       return fetchOrganizationByUsername(ctx.pool, parent.organizationUsername || parent.organization);
     }
   },
   Purchase: {
     organization: async (parent: any, _args: any, ctx: Context) => {
+      if (ctx.mongoDb) {
+        const orgRef = parent.organizationId || parent.organization_id || parent.organization;
+        const usernameRef = parent.organizationUsername || parent.organization_username;
+        const doc = orgRef ? await findMongoOrganizationById(ctx.mongoDb, String(orgRef)) : usernameRef ? await findMongoOrganizationByUsername(ctx.mongoDb, usernameRef) : null;
+        return mapMongoOrganization(doc);
+      }
       return fetchOrganizationByUsername(ctx.pool, parent.organizationUsername || parent.organization);
     }
   }
