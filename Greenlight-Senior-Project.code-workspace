@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "data-access"
+		},
+		{
+			"path": "ui-student"
+		},
+		{
+			"path": "ui-staff"
+		}
+	],
+	"settings": {}
+}
