@@ -1,14 +1,15 @@
 import { makeExecutableSchema } from '@graphql-tools/schema';
+import { print } from 'graphql';
 import { resolvers } from '../graphql/resolvers.js';
-import { typeDefs } from '../graphql/schema/schema.js';
+import { typeDefs as rawTypeDefs } from '../graphql/schema/schema.js';
 
-export async function buildSchema() {
-
-  console.log('TYPEDEFS:', typeDefs);
-  console.log('RESOLVERS:', resolvers);
+export function buildSchema() {
+  const typeDefs = typeof rawTypeDefs === 'string'
+    ? rawTypeDefs
+    : print(rawTypeDefs);
 
   return makeExecutableSchema({
-    typeDefs: typeDefs,
-    resolvers: resolvers,
+    typeDefs,
+    resolvers,
   });
 }
