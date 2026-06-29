@@ -21,7 +21,8 @@
     "graphql-tag": "^2.12.7",
     "mongodb": "^7.2.0",
     "mysql2": "^3.3.0",
-    "ruru": "^2.0.0"
+    "ruru": "^2.0.0",
+    "serverless-http": "^4.0.0"
   },
   "devDependencies": {
     "@graphql-codegen/cli": "^5.0.7",
