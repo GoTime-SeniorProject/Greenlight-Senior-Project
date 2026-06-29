@@ -1,0 +1,45 @@
+.card { 
+    border-radius:8px; 
+    width: 100%;
+}
+
+.image { 
+    gap:8px; 
+    margin-right: 15px;
+    display: flex;
+    align-items: center;
+    width: 250px;
+    flex: 0 0 auto;
+}
+
+.image img {
+    height: 100%;
+    width: auto;
+    object-fit: contain;
+    display: block;
+}
+
+.subtitle { 
+    font-size: 1.25rem;
+    font-weight: 500;
+    margin-bottom: 16px;
+}
+
+.content {
+    display: flex; 
+    flex-direction: column;
+    justify-content: center;
+}
+
+.all{
+    display: flex;
+    flex-direction: row;
+}
+
+@media (max-width: 768px) {
+    .all{
+        flex-direction: column;
+        align-items: center;
+    }
+
+}

@@ -1,0 +1,119 @@
+.sidebar {
+	background-color: var(--primary);
+	height: 100%;
+	align-self: stretch;
+	display: flex;
+	flex-direction: column;
+}
+
+.sidebar :global(.ant-menu-item),
+.sidebar :global(.ant-menu-submenu-title) {
+	padding-top: 1rem !important;
+	padding-bottom: 1rem !important;
+}
+
+.hamburgerContainer {
+	display: none;
+}
+
+.hamburger {
+	background: none;
+	border: none;
+	width: 36px;
+	height: 36px;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	cursor: pointer;
+	z-index: 1020;
+}
+
+.hamburgerBar {
+	width: 24px;
+	height: 3px;
+	border-radius: 2px;
+	display: block;
+	color: var(--background-2);
+}
+.overlay {
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100vw;
+	height: 100vh;
+	background: rgba(0, 0, 0, 0.2);
+	z-index: 900;
+}
+
+.userSection {
+	display: flex;
+	align-items: center;
+	height: 54px;
+	width: 208px;
+	padding: 10px;
+	background: var(--primary);
+	border-top: 1px solid var(--accent-gray-light);
+	gap: 8px;
+	position: fixed;
+	bottom: 0;
+}
+
+.userSection > div{
+	display: flex;
+	flex-direction: column;
+}
+
+.avatar{
+	height: 34px;
+	width: 34px;
+	border-radius: 50%;
+	object-fit: cover;
+}
+
+.logo {
+	height: 32px;
+	width: 28px;
+}
+
+.userName{
+	font-family: var(--font-body);
+	font-weight: 400;
+	color: var(--background-2);
+	line-height: 22px;
+	font-size: 14px;
+	width: 88px;
+}
+
+.logout{
+	color: var(--background-2) !important;
+	align-self:flex-end;
+}
+
+@media (max-width: 992px) {
+	.sidebar {
+		padding: 0;
+		transform: translateX(-100%);
+		transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+		width: 80vw;
+		max-width: 320px;
+		box-shadow: 4px 0 16px rgba(0, 0, 0, 0.08);
+	}
+
+	.hamburgerContainer {
+		display: flex;
+		position: fixed;
+		top: 1rem;
+		right: 10px;
+		z-index: 1100;
+	}
+	.hamburger {
+		display: flex;
+	}
+	.logoutDesktop {
+		display: none;
+	}
+	.logoutMobile {
+		display: block;
+		margin-top: 2rem;
+	}
+}

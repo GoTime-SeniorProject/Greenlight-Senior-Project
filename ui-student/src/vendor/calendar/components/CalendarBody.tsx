@@ -1,0 +1,142 @@
+import React, { useEffect, useRef } from 'react';
+import { Table, Grid } from 'antd';
+
+import type { GenericEvent, CalendarBodyProps, EventsObject } from './types';
+import type { ColumnProps } from 'antd/es/table';
+import { getDayHoursEvents, calculateScrollOffset } from './utils';
+import { createDayColumns, SCROLL_TO_ROW } from './columns';
+
+
+const { useBreakpoint } = Grid;
+
+function Calendar<T extends GenericEvent>({
+  weekDatesRange,
+  getDayEvents,
+  onEventClick,
+  weekends,
+}: CalendarBodyProps<T>) {
+  const rowRef = useRef<null | HTMLDivElement>(null);
+  const tableContainerRef = useRef<null | HTMLDivElement>(null);
+
+  const screens = useBreakpoint();
+
+  useEffect(() => {
+    if (rowRef.current && tableContainerRef.current && 'scrollTo' in tableContainerRef.current) {
+      const scrollOffset = calculateScrollOffset(tableContainerRef.current, rowRef.current);
+      tableContainerRef.current.scrollTo({ top: scrollOffset, behavior: 'smooth' });
+    }
+  }, [SCROLL_TO_ROW]);
+
+  const hourColumn: ColumnProps<EventsObject<T>> = {
+
+    onHeaderCell: () => ({
+      style: {
+        backgroundColor: 'var(--sea-green-1)',
+        color: 'var(--gray-12)',
+        fontWeight: 600,
+        borderRadius: 0,
+        border: 0,
+        whiteSpace: 'nowrap',
+        position: 'sticky',
+        top: 0,
+        left: 0,
+        zIndex: 50,
+      } as React.CSSProperties,
+    }),
+
+    onCell: () => ({
+      style: {
+        backgroundColor: 'var(--sea-green-1)', // match the header
+        whiteSpace: 'nowrap',
+        minWidth: 96,
+        padding: '6px 8px',
+      },
+    }),
+
+    dataIndex: 'hour',
+    key: 'hour',
+    width: screens.xs ? 70 : 110,
+    render: (hour: string, { }, id: number) => {
+      return {
+        props: {
+          style: {
+            width: screens.xs ? '28%' : '8%',
+            minWidth: 96,
+          },
+        },
+        children: SCROLL_TO_ROW === id ? (
+          <div ref={rowRef} style={{ whiteSpace: 'nowrap' }}>{hour}</div>
+        ) : (
+          <div style={{ whiteSpace: 'nowrap' }}>{hour}</div>
+        ),
+      };
+    },
+  };
+
+  const dayColumns = createDayColumns(weekDatesRange, weekends, onEventClick).map((col) => ({
+    ...col,
+
+    title: (
+      <div style={{ whiteSpace: 'nowrap', textAlign: 'center' }}>
+        {typeof col.title === 'function' ? col.title({}) : col.title}
+      </div>
+    ),
+
+    // Merge existing onHeaderCell safely
+    onHeaderCell: (origin: any) => {
+      const prevStyles = col.onHeaderCell ? col.onHeaderCell(origin).style : {};
+      return {
+        style: {
+          ...prevStyles,
+          borderBottom: '1px solid var(--accent-gray-light)',
+          fontWeight: 600,
+          borderRadius: 0,
+          color: prevStyles?.color || 'var(--gray-12)',
+          backgroundColor: prevStyles?.backgroundColor || 'var(--sea-green-1)',
+          position: 'sticky',
+          top: 0,
+          zIndex: 40,
+          backgroundClip: 'padding-box',
+
+        },
+      };
+    },
+  })) as ColumnProps<EventsObject<T>>[];
+
+
+  const tableColumns: ColumnProps<EventsObject<T>>[] = [hourColumn, ...dayColumns];
+
+  return (
+    <div
+      ref={tableContainerRef}
+
+      style={{
+        height: '84vh',
+        width: 'calc(100% - 0.5rem)',
+         // Set a fixed height for the container
+        overflow: 'auto', // Allow both vertical and horizontal scrolling within the container only
+        backgroundColor: 'var(--background-2)',
+        borderRadius: 0,
+      }}
+    >
+      <Table
+        rowKey={(record) => record.id}
+        dataSource={getDayHoursEvents(weekDatesRange, getDayEvents)}
+        columns={tableColumns}
+        pagination={false}
+        bordered={true}
+        showHeader={true}
+        onRow={(_, rowIndex) => {
+          return {
+            style: {
+              padding: '8px 0',
+            },
+          };
+        }}
+
+      />
+    </div >
+  );
+}
+
+export default Calendar;

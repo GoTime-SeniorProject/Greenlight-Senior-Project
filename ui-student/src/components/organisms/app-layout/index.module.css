@@ -1,0 +1,48 @@
+.appLayout {
+	min-height: 100vh;
+	display: flex;
+	flex-direction: column;
+	background: var(--color-background);
+}
+
+:global(.ant-layout),
+:global(.ant-layout-has-sider) {
+	flex-direction: column !important;
+}
+
+.bodyWrapper {
+	flex: 1 1 0;
+	display: flex;
+	flex-direction: row;
+	min-height: 0;
+	overflow-x: hidden;
+}
+
+.content {
+	flex: 1 1 0;
+	padding: 0;
+	background: var(--color-background);
+	min-height: 0;
+	overflow-x: hidden;
+	margin-top: 0;
+	padding-top: 64px;
+}
+
+:global(.ant-layout-has-sider) .content {
+	margin-left: 208px;
+}
+@media (max-width: 992px) {
+	.bodyWrapper {
+		flex-direction: column;
+		align-items: stretch;
+	}
+	
+	:global(.footer) {
+		width: 100%;
+		align-self: stretch;
+	}
+
+	:global(.ant-layout-has-sider) .content {
+		margin-left: 0;
+	}
+}
