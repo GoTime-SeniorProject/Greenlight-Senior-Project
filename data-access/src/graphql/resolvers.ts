@@ -36,6 +36,7 @@ type Context = {
 function mapMongoOrganization(doc: any) {
   if (!doc) return null;
   return {
+    _id: String(doc._id),
     id: String(doc.id ?? doc._id),
     orgName: doc.org_name ?? doc.orgName ?? null,
     username: doc.username ?? null,
@@ -134,6 +135,7 @@ async function findMongoEventById(db: Db, id: string) {
 function mapMongoEvent(doc: any) {
   if (!doc) return null;
   return {
+    _id: String(doc._id),
     id: String(doc.id ?? doc._id),
     organizationUsername: doc.organizationUsername ?? doc.organization_username ?? doc.organization ?? null,
     organization: doc.organizationId ?? doc.organization_id ?? doc.organization ?? null,
@@ -306,11 +308,12 @@ export const resolvers = {
       return rows.map(mapEventRow);
     },
     getUsers: async (_: unknown, args: any, ctx: Context) => {
-      if (ctx.mongoDb) {
+      if (ctx.mongoDb) {        
         const query: Record<string, any> = {};
         if (args.username) query.username = args.username;
         const docs = await findMongoDocuments(ctx.mongoDb, userCollections(ctx.mongoDb), query);
         return docs.map((doc: any) => ({
+          _id: String(doc._id),
           id: String(doc.id ?? doc._id),
           firstName: doc.first_name ?? doc.firstName ?? null,
           lastName: doc.last_name ?? doc.lastName ?? null,
@@ -342,9 +345,11 @@ export const resolvers = {
     },
     getUser: async (_: unknown, args: any, ctx: Context) => {
       if (ctx.mongoDb) {
-        const docs = await findMongoDocuments(ctx.mongoDb, userCollections(ctx.mongoDb), relationQueryFromParent({ id: args.id }, ['id', '_id', 'username']));
+        const objectId = /^[a-fA-F0-9]{24}$/.test(args.id) ? new ObjectId(args.id) : null;
+        const docs = await findMongoDocuments(ctx.mongoDb, userCollections(ctx.mongoDb), { $or: [ { id: args.id }, { username: args.id }, ...(objectId ? [{ _id: objectId }]:[])]});
         const doc = docs[0];
         return doc ? {
+          _id: String(doc._id),
           id: String(doc.id ?? doc._id),
           firstName: doc.first_name ?? doc.firstName ?? null,
           lastName: doc.last_name ?? doc.lastName ?? null,
@@ -368,6 +373,7 @@ export const resolvers = {
       if (ctx.mongoDb) {
         const docs = await findMongoDocuments(ctx.mongoDb, locationCollections(ctx.mongoDb), {});
         return docs.map((doc: any) => ({
+          _id: String(doc._id),
           id: String(doc.id ?? doc._id),
           buildingCode: doc.building_code ?? doc.buildingCode ?? null,
           buildingDisplayName: doc.building_display_name ?? doc.buildingDisplayName ?? null,
@@ -389,6 +395,7 @@ export const resolvers = {
         const docs = await findMongoDocuments(ctx.mongoDb, locationCollections(ctx.mongoDb), relationQueryFromParent({ id: args.id }, ['id', '_id']));
         const doc = docs[0];
         return doc ? {
+          _id: String(doc._id),
           id: String(doc.id ?? doc._id),
           buildingCode: doc.building_code ?? doc.buildingCode ?? null,
           buildingDisplayName: doc.building_display_name ?? doc.buildingDisplayName ?? null,
@@ -403,6 +410,7 @@ export const resolvers = {
       if (ctx.mongoDb) {
         const docs = await findMongoDocuments(ctx.mongoDb, purchaseCollections(ctx.mongoDb), {});
         return docs.map((doc: any) => ({
+          _id: String(doc._id),
           id: String(doc.id ?? doc._id),
           organizationUsername: doc.organizationUsername ?? doc.organization_username ?? doc.organization ?? null,
           organization: doc.organizationId ?? doc.organization_id ?? doc.organization ?? null,
@@ -427,6 +435,7 @@ export const resolvers = {
         const docs = await findMongoDocuments(ctx.mongoDb, purchaseCollections(ctx.mongoDb), relationQueryFromParent({ id: args.id }, ['id', '_id']));
         const doc = docs[0];
         return doc ? {
+          _id: String(doc._id),
           id: String(doc.id ?? doc._id),
           organizationUsername: doc.organizationUsername ?? doc.organization_username ?? doc.organization ?? null,
           organization: doc.organizationId ?? doc.organization_id ?? doc.organization ?? null,
@@ -446,9 +455,16 @@ export const resolvers = {
     },
     getPurchasesByOrganization: async (_: unknown, args: any, ctx: Context) => {
       if (ctx.mongoDb) {
-        const query = { organizationUsername: args.orgUsername };
+        const query = {
+          $or: [
+            { organizationUsername: args.orgUsername },
+            { organization_username: args.orgUsername },
+            { organization: args.orgUsername }
+          ]
+        };
         const docs = await findMongoDocuments(ctx.mongoDb, purchaseCollections(ctx.mongoDb), query);
         return docs.map((doc: any) => ({
+          _id: String(doc._id),
           id: String(doc.id ?? doc._id),
           organizationUsername: doc.organizationUsername ?? doc.organization_username ?? doc.organization ?? null,
           organization: doc.organizationId ?? doc.organization_id ?? doc.organization ?? null,
@@ -619,6 +635,7 @@ export const resolvers = {
         if (args.toDate) query.eventDate = { ...(query.eventDate || {}), $lte: args.toDate };
         const docs = await findMongoDocuments(ctx.mongoDb, eventCollections(ctx.mongoDb), query);
         return docs.map((doc: any) => ({
+          _id: String(doc._id),
           id: String(doc.id ?? doc._id),
           organizationUsername: doc.organizationUsername ?? doc.organization_username ?? doc.organization ?? null,
           organization: doc.organizationId ?? doc.organization_id ?? doc.organization ?? null,
@@ -669,8 +686,8 @@ export const resolvers = {
   Event: {
     organization: async (parent: any, _args: any, ctx: Context) => {
       if (ctx.mongoDb) {
-        const orgRef = parent.organizationId || parent.organization_id || parent.organization;
-        const usernameRef = parent.organizationUsername || parent.organization_username;
+        const orgRef = parent.organization;
+        const usernameRef = parent.organizationUsername;
         const doc = orgRef ? await findMongoOrganizationById(ctx.mongoDb, String(orgRef)) : usernameRef ? await findMongoOrganizationByUsername(ctx.mongoDb, usernameRef) : null;
         return mapMongoOrganization(doc);
       }
@@ -680,8 +697,8 @@ export const resolvers = {
   User: {
     organization: async (parent: any, _args: any, ctx: Context) => {
       if (ctx.mongoDb) {
-        const orgRef = parent.organizationId || parent.organization_id || parent.organization;
-        const usernameRef = parent.organizationUsername || parent.organization_username;
+        const orgRef = parent.organization;
+        const usernameRef = parent.organizationUsername;
         const doc = orgRef ? await findMongoOrganizationById(ctx.mongoDb, String(orgRef)) : usernameRef ? await findMongoOrganizationByUsername(ctx.mongoDb, usernameRef) : null;
         return mapMongoOrganization(doc);
       }
@@ -691,8 +708,8 @@ export const resolvers = {
   Purchase: {
     organization: async (parent: any, _args: any, ctx: Context) => {
       if (ctx.mongoDb) {
-        const orgRef = parent.organizationId || parent.organization_id || parent.organization;
-        const usernameRef = parent.organizationUsername || parent.organization_username;
+        const orgRef = parent.organization;
+        const usernameRef = parent.organizationUsername;
         const doc = orgRef ? await findMongoOrganizationById(ctx.mongoDb, String(orgRef)) : usernameRef ? await findMongoOrganizationByUsername(ctx.mongoDb, usernameRef) : null;
         return mapMongoOrganization(doc);
       }

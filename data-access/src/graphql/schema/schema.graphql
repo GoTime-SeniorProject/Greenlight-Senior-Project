@@ -4,6 +4,7 @@ scalar DateTime
 scalar JSON
 
 type Organization {
+  _id: ID!
   id: ID!
   orgName: String!
   username: String!
@@ -15,6 +16,7 @@ type Organization {
 }
 
 type User {
+  _id: ID!
   id: ID!
   firstName: String
   lastName: String
@@ -29,6 +31,7 @@ type User {
 }
 
 type Event {
+  _id: ID!
   id: ID!
   organizationUsername: String!
   organization: Organization
@@ -52,6 +55,7 @@ type Event {
 }
 
 type Location {
+  _id: ID!
   id: ID!
   buildingCode: String
   buildingDisplayName: String
@@ -61,6 +65,7 @@ type Location {
 }
 
 type Purchase {
+  _id: ID!
   id: ID!
   organizationUsername: String!
   organization: Organization
@@ -92,7 +97,7 @@ type Query {
 
   getEvent(id: ID!): Event
   getEvents(limit: Int = 25, offset: Int = 0, status: EventStatus, fromDate: Date, toDate: Date): [Event!]!
-  getEventsByOrganization(orgUsername: String!, limit: Int = 25, offset: Int = 0, status: String, fromDate: Date, toDate: Date): [Event!]!
+  getEventsByOrganization(orgUsername: String!, limit: Int = 25, offset: Int = 0, status: EventStatus, fromDate: Date, toDate: Date): [Event!]!
 
   getUser(id: ID!): User
   getUsers(limit: Int = 25, offset: Int = 0, username: String): [User!]!
@@ -133,7 +138,7 @@ input CreateEventInput {
   eventLevel: Int
   locationId: Int
   eventImg: String
-  eventStatus: String
+  eventStatus: EventStatus
   formData: JSON
 }
 
@@ -149,7 +154,7 @@ input UpdateEventInput {
   eventLevel: Int
   locationId: Int
   eventImg: String
-  eventStatus: String
+  eventStatus: EventStatus
   formData: JSON
 }
 

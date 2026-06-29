@@ -1,6 +1,9 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
+import path from 'node:path';
 import { buildSchema } from './init/schema.js';
 import { startExample } from './server.js';
+
+dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 
 async function main() {
   const schema = await buildSchema();
