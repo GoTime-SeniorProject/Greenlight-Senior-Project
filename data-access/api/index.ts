@@ -4,11 +4,9 @@ import serverless from "serverless-http";
 const app = express();
 
 app.get("/", (req, res) => {
-  res.json({ ok: true });
+  res.json({ step: "A ok" });
 });
 
-app.get("/ping", (req, res) => {
-  res.send("pong");
-});
+console.log("FUNCTION LOADED");
 
 export default serverless(app);
