@@ -1,8 +1,8 @@
 import { createHandler } from 'graphql-http/lib/use/express';
 import { makeExecutableSchema } from '@graphql-tools/schema';
-import { typeDefs } from '../src/graphql/schema.ts';
-import { resolvers } from '../src/graphql/resolvers.ts';
-import { getDb } from '../src/db/mongo-client.ts';
+import { typeDefs } from '../src/graphql/schema.js';
+import { resolvers } from '../src/graphql/resolvers.js';
+import { getDb } from '../src/db/mongo-client.js';
 
 let mongoDbPromise: Promise<any> | null = null;
 
