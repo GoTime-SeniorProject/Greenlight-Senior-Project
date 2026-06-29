@@ -1,17 +1,16 @@
-import { buildSchema } from '../src/init/schema.js';
-import serverless from 'serverless-http';
-import express from 'express';
+import express from "express";
+import serverless from "serverless-http";
+import { buildSchema } from "../src/init/schema.js";
 
 const app = express();
 
 let schemaPromise = buildSchema();
 
-app.get('/health', (req, res) => {
+app.get("/health", (req, res) => {
     res.json({ ok: true });
 });
 
-// example route using your schema
-app.get('/schema', async (req, res) => {
+app.get("/schema", async (req, res) => {
     const schema = await schemaPromise;
     res.json(schema);
 });

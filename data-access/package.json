@@ -5,8 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "start": "node dist/index.js",
-    "dev": "tsx watch src/index.ts",
+    "dev": "tsx watch src/dev.ts",
     "gen": "graphql-codegen --config src/graphql/codegen.yml"
   },
   "dependencies": {
