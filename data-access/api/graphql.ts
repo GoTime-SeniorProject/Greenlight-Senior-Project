@@ -1,28 +1,14 @@
 import { createHandler } from 'graphql-http/lib/use/express';
-import { makeExecutableSchema } from '@graphql-tools/schema';
-import { typeDefs } from '../src/graphql/schema.js';
-import { resolvers } from '../src/graphql/resolvers.js';
+import { buildSchema } from '../src/init/schema.js';
 import { getDb } from '../src/db/mongo-client.js';
+import type { Request, Response } from 'express';
 
-let mongoDbPromise: Promise<any> | null = null;
+export default async function handler(req: Request, res: Response) {
+    const mongoDb = await getDb();
+    const schema = await buildSchema();
 
-export const schema = makeExecutableSchema({
-    typeDefs,
-    resolvers,
-});
-
-export default async function handler(req: any, res: any) {
-    if (!mongoDbPromise) {
-        mongoDbPromise = getDb();
-    }
-    
-    const mongoDb = await mongoDbPromise;
-
-
-    const graphqlHandler = createHandler({
+    return createHandler({
         schema,
         context: () => ({ mongoDb }),
-    });
-
-    return graphqlHandler(req, res, () => {});
+    })(req, res, () => {});
 }
