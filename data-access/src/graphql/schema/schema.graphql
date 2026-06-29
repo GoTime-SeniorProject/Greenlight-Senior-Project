@@ -1,3 +1,8 @@
+scalar Date
+scalar DateTime
+scalar Time
+scalar JSON
+
 type Organization {
   _id: ID!
   id: ID!

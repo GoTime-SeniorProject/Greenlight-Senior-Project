@@ -5,8 +5,8 @@ import { resolvers } from '../graphql/resolvers.js';
 
 export async function buildSchema() {
   const typesArray = await loadFiles('./src/graphql/schema/**/*.graphql');
-  
   const typeDefs = mergeTypeDefs(typesArray);
   console.log('TYPEDEFS:', typesArray);
+  console.log('RESOLVERS:', resolvers);
   return makeExecutableSchema({ typeDefs, resolvers });
 }
