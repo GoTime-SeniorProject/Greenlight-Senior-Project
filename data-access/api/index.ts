@@ -1,6 +1,6 @@
 import express from "express";
 import serverless from "serverless-http";
-import { buildSchema } from "../init/schema.js";
+import { buildSchema } from "../src/init/schema.js";
 
 const app = express();
 
