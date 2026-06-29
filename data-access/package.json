@@ -4,7 +4,6 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
     "dev": "tsx watch src/dev.ts",
     "gen": "graphql-codegen --config src/graphql/codegen.yml"
   },
