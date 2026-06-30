@@ -1,4 +1,4 @@
-Data-access Node service (MySQL + GraphQL codegen)
+Data-access Node service (MongoDB + GraphQL codegen)
 
 Setup:
 
