@@ -1,8 +1,11 @@
-import path from "path";
-import { loadFilesSync } from "@graphql-tools/load-files";
+import { mergeTypeDefs } from "@graphql-tools/merge";
 
-const typesArray = loadFilesSync(
-    path.join(process.cwd(), "src/graphql/schema/**/*.graphql")
-);
+import { schema } from "./schema.js";
+import { queries } from "./types/queries.js";
+import { mutations } from "./types/mutations.js";
 
-export const typeDefs = typesArray;
+export const typeDefs = mergeTypeDefs([
+    schema,
+    queries,
+    mutations
+]);

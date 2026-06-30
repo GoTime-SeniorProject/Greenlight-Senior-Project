@@ -1,3 +1,4 @@
+export const schema = `
   scalar Date
   scalar Time
   scalar DateTime
@@ -214,3 +215,4 @@
     updatePurchase(id: ID!, input: UpdatePurchaseInput!): Purchase!
     deletePurchase(id: ID!): Boolean!
   }
+`;
