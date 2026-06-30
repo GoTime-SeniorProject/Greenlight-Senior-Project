@@ -19,7 +19,7 @@ npm i
 Run dev server:
 
 ```bash
-npm run dev
+vercel dev
 ```
 
 GraphQL sandbox runs at http://localhost:7071/graphql by default.
