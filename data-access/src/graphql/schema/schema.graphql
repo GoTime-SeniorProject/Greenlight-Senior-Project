@@ -196,6 +196,23 @@
     itemCost: Float
   }
 
+  type Query {
+    getEvents(limit: Int, offset: Int, status: EventStatus, fromDate: Date, toDate: Date): [Event]
+    getEvent(id: ID!): Event
+    getEventsByOrganization(orgUsername: String!, limit: Int, offset: Int, status: EventStatus, fromDate: Date, toDate: Date): [Event]
+
+    getOrganizations(limit: Int, offset: Int, username: String): [Organization]
+
+    getUsers(limit: Int, offset: Int, username: String): [User]
+    getUser(id: ID!): User
+
+    getPurchases(limit: Int, offset: Int): [Purchase]
+    getPurchase(id: ID!): Purchase
+    getPurchasesByOrganization(orgUsername: String!, limit: Int, offset: Int): [Purchase]
+
+    getLocations(limit: Int, offset: Int): [Location]
+  }
+
   type Mutation {
     createOrganization(input: CreateOrganizationInput!): Organization!
     updateOrganization(id: ID!, input: UpdateOrganizationInput!): Organization!
