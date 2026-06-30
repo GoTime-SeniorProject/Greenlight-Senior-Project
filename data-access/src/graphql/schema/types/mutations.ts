@@ -1,4 +1,6 @@
-export const mutations = `
+import { gql } from "graphql-tag";
+
+export const mutations = gql`
     # Mutations for Events and Organizations
 
     mutation CreateEvent($input: CreateEventInput!) {

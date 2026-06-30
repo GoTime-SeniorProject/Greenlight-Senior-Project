@@ -1,4 +1,6 @@
-export const queries = `
+import { gql } from "graphql-tag";
+
+export const queries = gql`
     # Queries for Events and Organizations
 
     query GetEvents($limit: Int = 25, $offset: Int = 0, $status: EventStatus, $fromDate: Date, $toDate: Date) {
