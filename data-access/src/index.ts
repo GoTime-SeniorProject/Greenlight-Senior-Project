@@ -1,9 +1,9 @@
 import dotenv from "dotenv";
 import { ApolloServer } from "@apollo/server";
 import { expressMiddleware } from "@as-integrations/express4";
-import { typeDefs } from "./src/graphql/schema/index";
-import { resolvers } from "./src/graphql/resolvers";
-import { getDb } from "./src/db/mongo-client";
+import { typeDefs } from "./graphql/schema/index.js";
+import { resolvers } from "./graphql/resolvers/index.js";
+import { getDb } from "./db/mongo-client.js";
 import express from "express";
 import cors from "cors";
 
