@@ -178,20 +178,22 @@
   }
 
   type Query {
-    getEvents(limit: Int, offset: Int, status: EventStatus, fromDate: Date, toDate: Date): [Event]
+    getOrganization(id: ID!): Organization
+    getOrganizations(limit: Int = 25, offset: Int = 0, username: String): [Organization!]!
+
     getEvent(id: ID!): Event
-    getEventsByOrganization(orgUsername: String!, limit: Int, offset: Int, status: EventStatus, fromDate: Date, toDate: Date): [Event]
+    getEvents(limit: Int = 25, offset: Int = 0, status: EventStatus, fromDate: Date, toDate: Date): [Event!]!
+    getEventsByOrganization(orgUsername: String!, limit: Int = 25, offset: Int = 0, status: EventStatus, fromDate: Date, toDate: Date): [Event!]!
 
-    getOrganizations(limit: Int, offset: Int, username: String): [Organization]
-
-    getUsers(limit: Int, offset: Int, username: String): [User]
     getUser(id: ID!): User
+    getUsers(limit: Int = 25, offset: Int = 0, username: String): [User!]!
 
-    getPurchases(limit: Int, offset: Int): [Purchase]
+    getLocation(id: ID!): Location
+    getLocations(limit: Int = 25, offset: Int = 0): [Location!]!
+
     getPurchase(id: ID!): Purchase
-    getPurchasesByOrganization(orgUsername: String!, limit: Int, offset: Int): [Purchase]
-
-    getLocations(limit: Int, offset: Int): [Location]
+    getPurchases(limit: Int = 25, offset: Int = 0): [Purchase!]!
+    getPurchasesByOrganization(orgUsername: String!, limit: Int = 25, offset: Int = 0): [Purchase!]!
   }
 
   type Mutation {
