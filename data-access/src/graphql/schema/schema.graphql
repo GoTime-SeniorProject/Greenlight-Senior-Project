@@ -91,25 +91,6 @@
     VIRTUAL
   }
 
-  type Query {
-    getOrganization(id: ID!): Organization
-    getOrganizations(limit: Int = 25, offset: Int = 0, username: String): [Organization!]!
-
-    getEvent(id: ID!): Event
-    getEvents(limit: Int = 25, offset: Int = 0, status: EventStatus, fromDate: Date, toDate: Date): [Event!]!
-    getEventsByOrganization(orgUsername: String!, limit: Int = 25, offset: Int = 0, status: EventStatus, fromDate: Date, toDate: Date): [Event!]!
-
-    getUser(id: ID!): User
-    getUsers(limit: Int = 25, offset: Int = 0, username: String): [User!]!
-
-    getLocation(id: ID!): Location
-    getLocations(limit: Int = 25, offset: Int = 0): [Location!]!
-
-    getPurchase(id: ID!): Purchase
-    getPurchases(limit: Int = 25, offset: Int = 0): [Purchase!]!
-    getPurchasesByOrganization(orgUsername: String!, limit: Int = 25, offset: Int = 0): [Purchase!]!
-  }
-
   input CreateOrganizationInput {
     orgName: String!
     username: String!
