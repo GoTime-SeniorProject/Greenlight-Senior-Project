@@ -1,7 +1,0 @@
-{
-    "functions": {
-        "data-access/src/init/schema.ts": {
-        "includeFiles": "src/graphql/schema/**/*.graphql"
-        }
-    }
-}
